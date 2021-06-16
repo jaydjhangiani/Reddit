@@ -23,7 +23,7 @@
       "strictPropertyInitialization": false,
       //EXTRA
       "alwaysStrict": true,
-      "noUnusedLocals": true,
+      // "noUnusedLocals": true,
       "noUnusedParameters": true,
       "noImplicitReturns": true,
       "noFallthroughCasesInSwitch": true,
