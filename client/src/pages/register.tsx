@@ -5,6 +5,7 @@ import Axios from 'axios';
 import {useRouter} from 'next/router';
 
 import InputGroup from '../components/InputGroup'
+import { useAuthState } from '../context/auth';
 
 export default function Register() {
     const [email, setEmail] = useState('');
@@ -13,6 +14,8 @@ export default function Register() {
     const [agreement, setAgreement] = useState(false);
     const [errors, setErrors] = useState<any>({});
     const router = useRouter()
+    const { authenticated } = useAuthState()
+    if (authenticated) router.push('/')
 
     const submitForm = async (event: FormEvent) =>{
         event.preventDefault()
@@ -58,7 +61,7 @@ export default function Register() {
                             id="agreement"
                         />
                         <label htmlFor="agreement" className="text-xs cursor-pointer">
-                            I agree to get emails about cool stuff on Reddit
+                            I agree and accept the terms and conditions.
                         </label>
                         <small className="block font-medium text-red-600">
                             {errors.agreement}
@@ -93,7 +96,7 @@ export default function Register() {
                         </button>
                     </form>
                     <small>
-                        Already a redditor?
+                        Already use The Pit Stop?
                         <Link href="/login">
                         <a className="ml-1 text-blue-500 uppercase">Log In!</a>
                         </Link>

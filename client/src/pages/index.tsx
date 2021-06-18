@@ -1,91 +1,126 @@
 import Head from 'next/head'
-import React, { useEffect, useState , Fragment} from 'react'
-import Axios from 'axios'
-import {Post} from '../types'
-import Link from 'next/link'
+import { Fragment, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-// import {GetServerSideProps} from 'next'
+import useSWR, { useSWRInfinite } from 'swr'
+import Image from 'next/image'
+
+import { Post, Sub } from '../types'
+
+import PostCard from '../components/PostCard'
+import Link from 'next/link'
+import { useAuthState } from '../context/auth'
 
 dayjs.extend(relativeTime)
 
 export default function Home() {
-  const [posts, setPosts] = useState<Post[]>([])
+  const [observedPost, setObservedPost] = useState('')
+  // const { data: posts } = useSWR<Post[]>('/posts')
+  const { data: topSubs } = useSWR<Sub[]>('/misc/top-subs')
+  const { authenticated } = useAuthState()
+
+
+
+  const {data, error, mutate, size: page, setSize: setPage, revalidate} = 
+  useSWRInfinite<Post[]>(index => 
+      `/posts?page=${index}`
+    )
+
+    const posts: Post[] = data ? [].concat(...data) : [];
+    const isLoadingInitialData = !data && !error;
 
   useEffect(() => {
-    Axios.get('/posts')
-      .then(res => setPosts(res.data))
-      .catch(err => console.log(err))
-  },[])
+    if(!posts || posts.length === 0) return
+
+    const id = posts[posts.length - 1].identifier
+
+    if(id !== observedPost){
+      setObservedPost(id)
+      observedElement(document.getElementById(id))
+    }
+  },[posts])
+
+  const observedElement = (element: HTMLElement) => {
+    if(!element) return
+
+    const observer = new IntersectionObserver((entries) => {
+      if(entries[0].isIntersecting === true){
+        console.log('Reached bottom of posts')
+        setPage(page + 1)
+        observer.unobserve(element)
+      }
+    },{threshold:1})
+    observer.observe(element)
+  }
+
+  const description = "We at ‘The Pit Stop’ believe in equipping you with all that you need to know about current affairs, entertainment, technology, sport, fashion.... your window to the world!"
 
   return (
-    <div className="pt-14">
+    <Fragment>
       <Head>
-        <title>Reddit: the front page of the internet</title>
+        <title>The Pit Stop: One stop solutions to all your querries</title>
+        <meta name="description" content={description} />
+        <meta property="og:description" content={description} />
+        <meta property="og:title" content="The Pit Stop: One stop solutions to all your querries" />
+        <meta property="twitter:description" content={description} />
+        <meta property="twitter:title" content="The Pit Stop: One stop solutions to all your querries" />
       </Head>
       <div className="container flex pt-4">
-        {/* posts feed */}
-        <div className="w-160">
-          {posts?.map(post => (
-            <div key={post.identifier} className="flex mb-4 bg-white rounded">
-              {/* vote section */}
-              <div className="w-10 text-center bg-gray-200 rounded-l">
-                <p>V</p>
-              </div>
-              {/* post data section */}
-              <div className="w-full p-2">
-                <div className="flex items-center">
-                  <Link href={`r/${post.subName}`} >
-                    <Fragment>
-                      <img src="https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y" 
-                      className="w-6 h-6 mr-1 rounded-full cursor-pointer "  />
-                      <a className = "text-xs font-bold cursor-pointer hover:underline ">
-                        /r/{post.subName}
-                      </a>
-                    </Fragment>
-                  </Link>
-                  <p className="text-xs text-gray-500">
-                    <span className="mx-1">•</span>
-                    Posted by
-                    <Link href={`/u/user`}>
-                      <a className="mx-1 hover:underline">/u/{post.username}</a>
-                    </Link>
-                    <Link href={post.url}>
-                      <a className="mx-1 hover:underline">
-                        {dayjs(post.createdAt).fromNow()}
-                      </a>
-                    </Link>
-                  </p>
-                </div>
-                <Link href={post.url}>
-                  <a className="my-1 text-lg font-medium">{post.title}</a>
-                </Link>
-                {post.body && <p className="my-1 text-sm">{post.body}</p>}
-                <div className="flex">
-                  <Link href={post.url}>
+        {/* Posts feed */}
+        <div className="w-full px-4 md:w-160 md:p-0">
+          {isLoadingInitialData && <p className="text-lg text-center">Loading....</p>}
+          {posts?.map((post) => (
+            <PostCard post={post} key={post.identifier} revalidate={revalidate} />
+          ))}
+          {isLoadingInitialData &&  posts.length > 0 && <p className="text-lg text-center">Loading More....</p>}
+        </div>
+        {/* Sidebar */}
+        <div className="hidden ml-6 md:block w-80">
+          <div className="bg-white rounded">
+            <div className="p-4 border-b-2">
+              <p className="text-lg font-semibold text-center">
+                Top Communities
+              </p>
+            </div>
+            <div>
+              {topSubs?.map((sub) => (
+                <div
+                  key={sub.name}
+                  className="flex items-center px-4 py-2 text-xs border-b"
+                >
+                  <Link href={`/r/${sub.name}`}>
                     <a>
-                      <div className="px-1 py-1 mr-1 text-xs text-gray-400 rounded cursor-pointer hover:bg-gray-200">
-                        <i className="mr-1 fas fa-comment-alt fa-xs"></i>
-                        <span className="font-bold">20 Comments</span>
-                      </div>
+                      <Image
+                        src={sub.imageUrl}
+                        className="rounded-full cursor-pointer"
+                        alt="Sub"
+                        width={(6 * 16) / 4}
+                        height={(6 * 16) / 4}
+                      />
                     </a>
                   </Link>
-                  <div className="px-1 py-1 mr-1 text-xs text-gray-400 rounded cursor-pointer hover:bg-gray-200">
-                    <i className="mr-1 fas fa-share fa-xs"></i>
-                    <span className="font-bold">Share</span>
-                  </div>
-                  <div className="px-1 py-1 mr-1 text-xs text-gray-400 rounded cursor-pointer hover:bg-gray-200">
-                    <i className="mr-1 fas fa-bookmark fa-xs"></i>
-                    <span className="font-bold">Save</span>
-                  </div>
+                  <Link href={`/r/${sub.name}`}>
+                    <a className="ml-2 font-bold hover:cursor-pointer">
+                      /r/{sub.name}
+                    </a>
+                  </Link>
+                  <p className="ml-auto font-med">{sub.postCount}</p>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+            {authenticated && (
+              <div className="p-4 border-t-2">
+                <Link href="/subs/create">
+                  <a className="w-full px-2 py-1 blue button">
+                    Create Community
+                  </a>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
-        {/* sidebar */} 
       </div>
-    </div>
+    </Fragment>
   )
 }
 
